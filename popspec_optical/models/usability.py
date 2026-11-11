@@ -9,7 +9,7 @@ class OpticalJobUsability(models.Model):
     next_step = fields.Char(compute='_compute_next_step')
     open_case_count = fields.Integer(compute='_compute_open_case_count')
 
-    @api.depends('state')
+    @api.depends('state', 'frame_source')
     def _compute_next_step(self):
         instructions = {
             'draft': _('Prepare the quotation, frame and restricted lens details. Reserve the frame in Inventory, scan both labels and complete pre-lab QC before verification.'),
@@ -20,8 +20,14 @@ class OpticalJobUsability(models.Model):
             'dispensed': _('This dispensing record is complete. Use an aftercare case for complaints, warranty requests, returns or a replacement.'),
             'cancelled': _('This job is cancelled. Review its native stock, purchasing and accounting documents separately.'),
         }
+        customer_instructions = {
+            'draft': _('Prepare the native quotation, customer-frame identity/condition and restricted lens details. Scan both labels and complete pre-lab QC. Do not reserve company stock for this frame.'),
+            'verified': _('Print the restricted lab ticket, confirm the linked lab purchase order and scan dispatch. Customer-owned frames do not require a company-stock transfer.'),
+            'in_lab': _('Record the supplier acknowledgment and promised date. Scan the customer-owned frame on return, then record lab receipt.'),
+            'ready': _('Complete final fitting QC, scan collection and confirm customer receipt. Complete native invoicing/payment before dispensing; do not create company stock for this frame.'),
+        }
         for job in self:
-            job.next_step = instructions[job.state]
+            job.next_step = customer_instructions.get(job.state, instructions[job.state]) if job.frame_source == 'customer' else instructions[job.state]
 
     @api.depends('case_ids.state')
     def _compute_open_case_count(self):

@@ -379,6 +379,8 @@ class TestOptical(AccountTestInvoicingCommon):
         self.assertEqual(job.action_open_cases()['context']['default_job_id'], job.id)
         self.assertEqual(job.open_case_count, 1)
         self.assertEqual(job.action_complete_sop()['context']['default_job_id'], job.id)
+        self.assertIn('Do not reserve company stock', job.next_step)
+        self.assertEqual(self.patient.with_user(self.operator).action_view_optical_jobs()['context']['default_patient_id'], self.patient.id)
 
     def test_18_operational_prints_exclude_clinical_data_and_do_not_complete_collection(self):
         job = self._job()
@@ -429,6 +431,8 @@ class TestOptical(AccountTestInvoicingCommon):
         action = job.with_user(self.operator).action_open_sale_order()
         self.assertEqual(action['res_model'], 'sale.order')
         self.assertEqual(action['res_id'], job.sale_order_id.id)
+        order_action = job.sale_order_id.with_user(self.operator).action_view_optical_jobs()
+        self.assertEqual(order_action['context']['default_sale_order_id'], job.sale_order_id.id)
         with self.assertRaises(AccessError):
             job.with_user(self.portal).action_open_sale_order()
         with self.assertRaises(ValidationError), self.cr.savepoint():
