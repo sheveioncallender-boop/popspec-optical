@@ -13,7 +13,7 @@ class OpticalJob(models.Model):
     _description = 'Optical Job — One Pair'
     _check_company_auto = True
     _order = 'id desc'
-    name = fields.Char(default='New', readonly=True, copy=False, index=True)
+    name = fields.Char(default='New', readonly=True, copy=False, index=True, required=True)
     company_id = fields.Many2one('res.company', required=True, default=lambda s: s.env.company, readonly=True)
     patient_id = fields.Many2one('res.partner', required=True, ondelete='restrict', check_company=True)
     state = fields.Selection(STAGES, default='draft', required=True, readonly=True, copy=False, index=True)
@@ -64,6 +64,8 @@ class OpticalJob(models.Model):
         # Serial allocation is exclusive even when two requests arrive together.
         self.env.cr.execute("""CREATE UNIQUE INDEX IF NOT EXISTS optical_job_active_frame_uniq
             ON optical_job(frame_id) WHERE frame_id IS NOT NULL AND state NOT IN ('dispensed', 'cancelled')""")
+        self.env.cr.execute("""CREATE UNIQUE INDEX IF NOT EXISTS optical_job_sale_pair_uniq
+            ON optical_job(sale_line_id) WHERE sale_line_id IS NOT NULL AND state != 'cancelled'""")
 
     @api.depends('name', 'frame_source', 'frame_id.optical_serial')
     def _compute_frame_code(self):
@@ -211,6 +213,7 @@ class OpticalJob(models.Model):
         self._lock()
         for r in self:
             r._require_stage('draft')
+            r._check_links()
             if not r.sale_order_id or r.sale_order_id.state != 'sale':
                 raise UserError(_('Confirm the native quotation before laboratory ordering.'))
             if not r.laboratory_id:
@@ -241,6 +244,7 @@ class OpticalJob(models.Model):
         self._lock()
         for r in self:
             r._require_stage('verified')
+            r._check_links()
             r._require_qc('pre_lab')
             r._require_scan('dispatch')
             if not r.purchase_order_id or r.purchase_order_id.state not in ('purchase', 'done'):
@@ -283,6 +287,7 @@ class OpticalJob(models.Model):
         self._lock()
         for r in self:
             r._require_stage('ready')
+            r._check_links()
             r._require_qc('dispense')
             r._require_scan('collect')
             if not r.collection_confirmed:

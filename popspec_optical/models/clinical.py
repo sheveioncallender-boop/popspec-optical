@@ -8,7 +8,7 @@ class Prescription(models.Model):
     _description = 'Restricted Optical Prescription Version'
     _check_company_auto = True
     _order = 'id desc'
-    name = fields.Char(default='New', readonly=True, copy=False)
+    name = fields.Char(default='New', readonly=True, copy=False, required=True)
     company_id = fields.Many2one('res.company', required=True, default=lambda s: s.env.company, readonly=True)
     patient_id = fields.Many2one('res.partner', required=True, check_company=True, ondelete='restrict')
     previous_id = fields.Many2one('optical.prescription', readonly=True, copy=False, check_company=True, ondelete='restrict')
@@ -31,6 +31,7 @@ class Prescription(models.Model):
     approved_by = fields.Many2one('res.users', readonly=True, copy=False)
     approved_at = fields.Datetime(readonly=True, copy=False)
     change_reason = fields.Text(required=True)
+    _name_unique = models.Constraint('UNIQUE(name)', 'Prescription numbers must be unique.')
 
     @api.constrains('right_axis', 'left_axis', 'examination_date', 'valid_until')
     def _check_values(self):

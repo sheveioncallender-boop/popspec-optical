@@ -1,5 +1,5 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 
 class ProductTemplate(models.Model):
@@ -30,6 +30,8 @@ class StockLot(models.Model):
     @api.constrains('optical_serial', 'product_id')
     def _check_optical_serial(self):
         for r in self:
+            if r.product_id.optical_frame and not r.optical_serial:
+                raise ValidationError(_('Assign a unique optical scan code to this physical frame.'))
             if r.optical_serial and (r.product_id.tracking != 'serial' or not r.product_id.is_storable):
                 raise ValidationError(_('Only storable products tracked by serial number can have an optical scan code.'))
             if r.optical_serial and r.optical_serial != r.optical_serial.strip():
@@ -109,11 +111,15 @@ class StockMove(models.Model):
                     raise UserError(_('The optical job must be verified before its lab dispatch is validated.'))
                 job._require_qc('pre_lab')
                 job._require_scan('dispatch')
+                job._stock_evidence(job.dispatch_picking_id, 'dispatch', done=False)
             if delivery:
                 if job.state != 'ready':
                     raise UserError(_('Incoming inspection and final fitting must be completed before delivery.'))
                 job._require_qc('dispense')
                 job._require_scan('collect')
+                if delivery.picking_id != job.delivery_picking_id:
+                    raise UserError(_('Link this native customer delivery to the optical job before validating it.'))
+                job._stock_evidence(job.delivery_picking_id, 'delivery', done=False)
         result = super()._action_done(cancel_backorder=cancel_backorder)
         # Audit stock evidence without copying clinical data into Inventory chatter.
         for job in jobs:
@@ -122,3 +128,27 @@ class StockMove(models.Model):
                 job._audit('Native stock movement completed', {
                     'move_ids': completed.ids, 'transfer_ids': completed.picking_id.ids})
         return result
+
+
+CLINICAL_MODELS = ('optical.prescription', 'optical.job.clinical', 'optical.quality', 'optical.lab.ticket')
+
+
+class ClinicalAttachment(models.Model):
+    _inherit = 'ir.attachment'
+
+    @api.constrains('res_model', 'public', 'access_token')
+    def _check_clinical_sharing(self):
+        for attachment in self:
+            if attachment.res_model in CLINICAL_MODELS and (attachment.public or attachment.access_token):
+                raise ValidationError(_('Clinical attachments cannot be public or shared with access-token links.'))
+
+    def write(self, vals):
+        if set(vals) & {'res_model', 'res_id', 'datas', 'raw'}:
+            if any(r.res_model in CLINICAL_MODELS for r in self):
+                raise AccessError(_('Clinical source attachments are permanent. Add a new document to record a correction.'))
+        return super().write(vals)
+
+    def unlink(self):
+        if any(r.res_model in CLINICAL_MODELS for r in self):
+            raise AccessError(_('Clinical source attachments are permanent.'))
+        return super().unlink()

@@ -10,6 +10,9 @@ class TestOptical(AccountTestInvoicingCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # Accounting's common fixture switches to a non-HR user. Build setup data as
+        # administrator; every optical workflow/security assertion uses an explicit staff user.
+        cls.env = cls.env(su=True)
         company = cls.env.company
         common = 'base.group_allow_export,sales_team.group_sale_salesman,stock.group_stock_user,purchase.group_purchase_user'
         cls.clinician = new_test_user(cls.env, login='optical_clinician', groups=common + ',popspec_optical.group_clinical,popspec_optical.group_manager,account.group_account_invoice')
@@ -229,6 +232,19 @@ class TestOptical(AccountTestInvoicingCommon):
             job.with_user(self.operator).read(['clinical_ids'])
         with self.assertRaises(AccessError):
             job.with_user(self.portal).read(['name'])
+        with self.assertRaises(AccessError):
+            self.Job.with_user(self.operator).search_count([('clinical_ids.right_pd', '=', 31)])
+        attachment = self.env['ir.attachment'].with_user(self.clinician).create({
+            'name': 'Restricted clinical source.txt', 'res_model': 'optical.prescription',
+            'res_id': job.clinical_ids.prescription_id.id, 'raw': b'Clinical source fixture'})
+        with self.assertRaises(AccessError):
+            attachment.with_user(self.operator).read(['raw'])
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            attachment.write({'public': True})
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            attachment.write({'access_token': 'attempted-share'})
+        with self.assertRaises(AccessError):
+            attachment.write({'res_model': 'res.partner', 'res_id': self.patient.id})
 
     def test_12_exception_remake_preserves_original(self):
         job = self._job()

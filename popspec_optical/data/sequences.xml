@@ -1,5 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
 <odoo noupdate="1">
-  <record id="sequence_job" model="ir.sequence"><field name="name">Optical job</field><field name="code">optical.job</field><field name="prefix">PSJ-</field><field name="padding">7</field></record>
-  <record id="sequence_rx" model="ir.sequence"><field name="name">Optical prescription</field><field name="code">optical.prescription</field><field name="prefix">PSRX-</field><field name="padding">7</field></record>
-  <record id="sequence_frame" model="ir.sequence"><field name="name">Physical optical frame</field><field name="code">optical.frame</field><field name="prefix">PSF-</field><field name="padding">9</field></record>
+  <record id="sequence_job" model="ir.sequence"><field name="name">Optical job</field><field name="code">optical.job</field><field name="prefix">PSJ-</field><field name="padding">7</field><field name="company_id" eval="False"/></record>
+  <record id="sequence_rx" model="ir.sequence"><field name="name">Optical prescription</field><field name="code">optical.prescription</field><field name="prefix">PSRX-</field><field name="padding">7</field><field name="company_id" eval="False"/></record>
+  <record id="sequence_frame" model="ir.sequence"><field name="name">Physical optical frame</field><field name="code">optical.frame</field><field name="prefix">PSF-</field><field name="padding">9</field><field name="company_id" eval="False"/></record>
 </odoo>
