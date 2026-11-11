@@ -32,6 +32,8 @@ class StockLot(models.Model):
         for r in self:
             if r.optical_serial and (r.product_id.tracking != 'serial' or not r.product_id.is_storable):
                 raise ValidationError(_('Only storable products tracked by serial number can have an optical scan code.'))
+            if r.optical_serial and r.optical_serial != r.optical_serial.strip():
+                raise ValidationError(_('Optical scan codes cannot start or end with spaces.'))
 
     def write(self, vals):
         if set(vals) & {'name', 'optical_serial', 'product_id', 'company_id'}:
@@ -58,6 +60,22 @@ class SaleOrder(models.Model):
     optical_job_ids = fields.One2many('optical.job', 'sale_order_id', groups='popspec_optical.group_operator')
 
 
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+
+    def write(self, vals):
+        material = {'product_id', 'product_uom_qty', 'product_uom_id', 'price_unit', 'discount', 'tax_ids'}
+        jobs = self.env['optical.job'].sudo().search([('sale_line_id', 'in', self.ids), ('state', '!=', 'cancelled')]) if material & vals.keys() else self.env['optical.job']
+        if jobs:
+            jobs._lock()
+            jobs._require_editable()
+        result = super().write(vals)
+        if jobs:
+            jobs._invalidate_checks()
+            jobs._audit('Native frame sale line changed', {'values': vals, 'sale_line_ids': self.ids})
+        return result
+
+
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     optical_job_ids = fields.One2many('optical.job', 'purchase_order_id', groups='popspec_optical.group_operator')
@@ -81,6 +99,8 @@ class StockMove(models.Model):
             '|', ('dispatch_picking_id', 'in', self.picking_id.ids),
                  ('sale_line_id', 'in', self.sale_line_id.ids),
         ])
+        if jobs:
+            jobs._lock()
         for job in jobs:
             dispatch = self.filtered(lambda m: m.picking_id == job.dispatch_picking_id)
             delivery = self.filtered(lambda m: m.sale_line_id == job.sale_line_id and m.location_dest_id.usage == 'customer')
@@ -99,6 +119,6 @@ class StockMove(models.Model):
         for job in jobs:
             completed = result.filtered(lambda m: m.state == 'done' and (m.picking_id == job.dispatch_picking_id or m.sale_line_id == job.sale_line_id))
             if completed:
-                job.with_user(self.env.user)._audit('Native stock movement completed', {
+                job._audit('Native stock movement completed', {
                     'move_ids': completed.ids, 'transfer_ids': completed.picking_id.ids})
         return result

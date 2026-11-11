@@ -1,27 +1,30 @@
 from odoo import Command, fields
-from odoo.tests import TransactionCase, tagged, new_test_user
+from odoo.tests import tagged, new_test_user
+from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2 import IntegrityError
 
 
 @tagged('post_install', '-at_install')
-class TestOptical(TransactionCase):
+class TestOptical(AccountTestInvoicingCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         company = cls.env.company
-        common = 'sales_team.group_sale_salesman,stock.group_stock_user,purchase.group_purchase_user'
+        common = 'base.group_allow_export,sales_team.group_sale_salesman,stock.group_stock_user,purchase.group_purchase_user'
         cls.clinician = new_test_user(cls.env, login='optical_clinician', groups=common + ',popspec_optical.group_clinical,popspec_optical.group_manager,account.group_account_invoice')
         cls.operator = new_test_user(cls.env, login='optical_coordinator', groups=common + ',popspec_optical.group_operator')
         cls.manager = new_test_user(cls.env, login='optical_nonclinical_manager', groups=common + ',popspec_optical.group_manager')
-        cls.portal = new_test_user(cls.env, login='optical_portal', groups='base.group_portal')
+        cls.portal = new_test_user(cls.env, login='optical_portal', groups='base.group_portal,base.group_allow_export')
         for user in cls.clinician | cls.operator | cls.manager:
             cls.env['hr.employee'].create({'name': user.name, 'user_id': user.id, 'company_id': company.id})
         cls.patient = cls.env['res.partner'].create({'name': 'Optical test patient'})
         cls.lab = cls.env['res.partner'].create({'name': 'Optical test laboratory'})
         cls.product = cls.env['product.product'].create({'name': 'Test optical frame', 'type': 'consu',
-            'is_storable': True, 'tracking': 'serial', 'optical_frame': True, 'list_price': 500})
-        cls.service = cls.env['product.product'].create({'name': 'Test lens service', 'type': 'service', 'list_price': 100})
+            'is_storable': True, 'tracking': 'serial', 'optical_frame': True, 'list_price': 500,
+            'categ_id': cls.product_category.id, 'invoice_policy': 'order', 'taxes_id': [Command.clear()]})
+        cls.service = cls.env['product.product'].create({'name': 'Test lens service', 'type': 'service', 'list_price': 100,
+            'categ_id': cls.product_category.id, 'invoice_policy': 'order', 'taxes_id': [Command.clear()]})
         cls.lot = cls.env['stock.lot'].create({'name': 'TEST-SERIAL-01', 'product_id': cls.product.id, 'company_id': company.id})
         cls.Job = cls.env['optical.job'].with_user(cls.clinician)
         cls.Rx = cls.env['optical.prescription'].with_user(cls.clinician)
@@ -66,7 +69,7 @@ class TestOptical(TransactionCase):
             'measurements_checked': True, 'condition_checked': True, 'notes': 'Verified against the approved source.'})
 
     def _order(self, frame=False):
-        order = self.env['sale.order'].create({'partner_id': self.patient.id, 'order_line': [Command.create({
+        order = self.env['sale.order'].create({'partner_id': self.patient.id, 'user_id': self.clinician.id, 'order_line': [Command.create({
             'product_id': (self.product if frame else self.service).id, 'product_uom_qty': 1, 'price_unit': 100})]})
         order.action_confirm()
         return order
@@ -265,3 +268,72 @@ class TestOptical(TransactionCase):
         with self.assertRaises(UserError):
             job.action_verify()
         self.assertEqual(job.state, 'draft')
+
+    def test_16_native_stock_invoice_and_dispensing_flow(self):
+        warehouse = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
+        stock = warehouse.lot_stock_id
+        lab_location = self.env['stock.location'].create({'name': 'Company frames at lab', 'usage': 'internal',
+            'location_id': warehouse.view_location_id.id, 'company_id': self.env.company.id})
+        self.env['stock.quant']._update_available_quantity(self.product, stock, 1, lot_id=self.lot)
+        order = self._order(frame=True)
+        delivery = order.picking_ids
+        delivery.action_assign()
+        self.assertEqual(delivery.state, 'assigned')
+        job = self._job(customer=False, sale_order_id=order.id, sale_line_id=order.order_line.id,
+                        lab_location_id=lab_location.id, reservation_picking_id=delivery.id)
+        self._spec(job)
+        self._scan(job, 'reserve')
+        self._qc(job, 'pre_lab')
+        job.action_verify()
+        delivery.move_ids.picked = True
+        with self.assertRaises(UserError), self.cr.savepoint():
+            delivery.with_user(self.clinician).button_validate()
+        delivery.move_ids.picked = False
+        delivery.do_unreserve()
+
+        def transfer(source, destination):
+            picking = self.env['stock.picking'].create({'picking_type_id': warehouse.int_type_id.id,
+                'location_id': source.id, 'location_dest_id': destination.id,
+                'move_ids': [Command.create({'product_id': self.product.id, 'product_uom_qty': 1,
+                    'product_uom': self.product.uom_id.id, 'location_id': source.id, 'location_dest_id': destination.id})]})
+            picking.action_confirm()
+            picking.action_assign()
+            self.assertEqual(picking.state, 'assigned')
+            picking.move_ids.picked = True
+            return picking
+
+        dispatch = transfer(stock, lab_location)
+        po = self.env['purchase.order'].create({'partner_id': self.lab.id, 'order_line': [Command.create({
+            'product_id': self.service.id, 'product_qty': 1, 'price_unit': 20})]})
+        job.write({'dispatch_picking_id': dispatch.id, 'purchase_order_id': po.id, 'change_reason': 'Native procurement and dispatch linked'})
+        po.button_confirm()
+        self._scan(job, 'dispatch')
+        dispatch.with_user(self.clinician).button_validate()
+        job.action_dispatch()
+        self.assertEqual(dispatch.state, 'done')
+        receipt = transfer(lab_location, stock)
+        job.write({'receipt_picking_id': receipt.id, 'change_reason': 'Lab returned the pair'})
+        receipt.with_user(self.clinician).button_validate()
+        self._scan(job, 'receive')
+        job.action_receive()
+        self._qc(job, 'incoming')
+        job.action_ready()
+        self._qc(job, 'dispense')
+        self._scan(job, 'collect')
+        job.write({'delivery_picking_id': delivery.id, 'collection_confirmed': True, 'change_reason': 'Customer fitting and identity confirmed'})
+        delivery.action_assign()
+        delivery.move_ids.picked = True
+        delivery.with_user(self.clinician).button_validate()
+        self.assertEqual(delivery.state, 'done')
+        with self.assertRaises(UserError):
+            job.action_dispense()  # Delivery alone cannot substitute for full native invoicing/payment.
+        invoice = order._create_invoices()
+        invoice.action_post()
+        self.env['account.payment.register'].with_context(active_model='account.move', active_ids=invoice.ids).create({
+            'journal_id': self.company_data['default_journal_bank'].id}).action_create_payments()
+        self.assertIn(invoice.payment_state, ('paid', 'in_payment'))
+        job.action_dispense()
+        self.assertEqual(job.state, 'dispensed')
+        self.assertEqual(job.dispensed_by, self.clinician)
+        self.assertTrue(job.dispensed_at)
+        self.assertEqual(self.lot.product_qty, 0)

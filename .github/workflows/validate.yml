@@ -19,7 +19,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U odoo"
+          --health-cmd "pg_isready -U odoo -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -41,7 +41,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install -r /tmp/odoo/requirements.txt
-          python -m pip install tinycss2 websocket-client
+          python -m pip install rl-renderPM
       - name: Static source checks
         run: python scripts/validate.py
       - name: Clean install and optical workflow/security tests

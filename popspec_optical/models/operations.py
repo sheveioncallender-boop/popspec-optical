@@ -291,7 +291,9 @@ class OpticalJob(models.Model):
             # Finance remains native. Require finance access rather than leaking balances with sudo.
             self.env['account.move'].check_access('read')
             invoices = r.sale_order_id.invoice_ids.filtered(lambda m: m.move_type == 'out_invoice' and m.state == 'posted')
-            if not invoices or any(m.payment_state not in ('paid', 'in_payment') for m in invoices):
+            if (r.sale_order_id.invoice_status != 'invoiced' or not invoices
+                    or any(m.state == 'draft' for m in r.sale_order_id.invoice_ids)
+                    or any(m.payment_state not in ('paid', 'in_payment') for m in invoices)):
                 raise UserError(_('Record payment against the posted customer invoices before collection. Credit-policy exceptions are not enabled in this release.'))
             super(OpticalJob, r).write({'dispensed_at': fields.Datetime.now(), 'dispensed_by': self.env.uid})
             r._set_stage('dispensed')
