@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="job_company_rule" model="ir.rule">
+    <field name="name">Optical job: allowed companies</field>
+    <field name="model_id" ref="model_optical_job"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="prescription_company_rule" model="ir.rule">
+    <field name="name">Optical prescription: allowed companies</field>
+    <field name="model_id" ref="model_optical_prescription"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="job_clinical_company_rule" model="ir.rule">
+    <field name="name">Optical job_clinical: allowed companies</field>
+    <field name="model_id" ref="model_optical_job_clinical"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="quality_company_rule" model="ir.rule">
+    <field name="name">Optical quality: allowed companies</field>
+    <field name="model_id" ref="model_optical_quality"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="audit_company_rule" model="ir.rule">
+    <field name="name">Optical audit: allowed companies</field>
+    <field name="model_id" ref="model_optical_audit"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="scan_event_company_rule" model="ir.rule">
+    <field name="name">Optical scan_event: allowed companies</field>
+    <field name="model_id" ref="model_optical_scan_event"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="sop_company_rule" model="ir.rule">
+    <field name="name">Optical sop: allowed companies</field>
+    <field name="model_id" ref="model_optical_sop"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="sop_signoff_company_rule" model="ir.rule">
+    <field name="name">Optical sop_signoff: allowed companies</field>
+    <field name="model_id" ref="model_optical_sop_signoff"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="case_company_rule" model="ir.rule">
+    <field name="name">Optical case: allowed companies</field>
+    <field name="model_id" ref="model_optical_case"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="audit_operations_rule" model="ir.rule">
+    <field name="name">Audit: operations</field>
+    <field name="model_id" ref="model_optical_audit"/>
+    <field name="groups" eval="[(4, ref('group_operator'))]"/>
+    <field name="domain_force">[('clinical', '=', False)]</field>
+  </record>
+  <record id="audit_clinical_rule" model="ir.rule">
+    <field name="name">Audit: clinical</field>
+    <field name="model_id" ref="model_optical_audit"/>
+    <field name="groups" eval="[(4, ref('group_clinical'))]"/>
+    <field name="domain_force">[(1, "=", 1)]</field>
+  </record>
+<record id="lab_ticket_company_rule" model="ir.rule"><field name="name">Optical ticket: allowed companies</field><field name="model_id" ref="model_optical_lab_ticket"/><field name="domain_force">[('company_id','in',company_ids)]</field></record></odoo>

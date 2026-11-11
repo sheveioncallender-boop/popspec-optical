@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo noupdate="1">
+  <record id="sop_registration" model="optical.sop">
+    <field name="name">Customer registration</field>
+    <field name="step">registration</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Confirm customer identity, contact details and communication preferences. Keep clinical information in restricted records. Avoid duplicate contacts.</field>
+  </record>
+  <record id="sop_prescription" model="optical.sop">
+    <field name="name">Clinical prescriptions</field>
+    <field name="step">prescription</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Authorized clinical staff verify the source prescription, patient, examination date, both eyes and validity. Approve and retain an immutable version; revisions create a new version.</field>
+  </record>
+  <record id="sop_frame" model="optical.sop">
+    <field name="name">Frame selection</field>
+    <field name="step">frame</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Scan the physical serial, check SKU/colour/size/condition and native availability. For a customer-owned frame record identifying details, condition and suitability. Do not create company stock.</field>
+  </record>
+  <record id="sop_measurements" model="optical.sop">
+    <field name="name">Optical measurements</field>
+    <field name="step">measurements</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">An authorized practitioner records both lenses, monocular PD, fitting heights and laboratory instructions. Verify units and measurements against the patient and chosen frame.</field>
+  </record>
+  <record id="sop_quotation" model="optical.sop">
+    <field name="name">Quotation approval</field>
+    <field name="step">quotation</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Use Odoo Sales. Explain scope and terms, record customer acceptance and apply approved pricing. Confirm the quotation and record deposits/payment through native invoicing.</field>
+  </record>
+  <record id="sop_job" model="optical.sop">
+    <field name="name">One job per pair</field>
+    <field name="step">job</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Create one optical job for each pair. Link the patient, confirmed order, exact frame sale line and physical serial. Link the approved prescription in Restricted specifications.</field>
+  </record>
+  <record id="sop_pre_lab" model="optical.sop">
+    <field name="name">Before laboratory ordering</field>
+    <field name="step">pre_lab</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Verify patient/job/frame identity; verify approved prescription and both lens specifications; verify measurements and lab instructions; inspect the frame condition. Record all four checks and outcome. Failed checks block ordering.</field>
+  </record>
+  <record id="sop_procurement" model="optical.sop">
+    <field name="name">Supplier procurement</field>
+    <field name="step">procurement</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Use native Purchase for supplier RFQ/PO, receipt and bill. Confirm optical pre-lab verification before ordering. Record landed costs through Odoo Inventory/Accounting where applicable.</field>
+  </record>
+  <record id="sop_dispatch" model="optical.sop">
+    <field name="name">Laboratory dispatch</field>
+    <field name="step">dispatch</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Scan the job and exact physical frame. Link and validate the native internal transfer to the company-owned stock location at the external lab. Link the confirmed lab PO. Preserve company ownership.</field>
+  </record>
+  <record id="sop_receipt" model="optical.sop">
+    <field name="name">Goods receipt</field>
+    <field name="step">receipt</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Use native receipts for bought goods and an internal transfer for returning company-owned frames. Verify serial, quantity, condition and supplier reference. Log differences and do not silently substitute frames.</field>
+  </record>
+  <record id="sop_incoming" model="optical.sop">
+    <field name="name">Incoming spectacle inspection</field>
+    <field name="step">incoming</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Scan job and frame again on receipt. Verify identity; verify right/left lenses against the approved prescription and instructions; document lens/measurement verification; inspect frame and lens condition. Failures stay on hold.</field>
+  </record>
+  <record id="sop_dispense" model="optical.sop">
+    <field name="name">Final fitting and dispensing</field>
+    <field name="step">dispense</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Scan job and frame at final fitting. Verify customer identity, prescription/lens match, fit/measurements and condition/safety. Record the dispensing check. Verify native payment and delivery; obtain customer collection confirmation.</field>
+  </record>
+  <record id="sop_remake" model="optical.sop">
+    <field name="name">Corrections and remakes</field>
+    <field name="step">remake</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Open an exception against the original job. Document responsibility, resolution and native cost/stock treatment. Manager approves before a separate replacement job is created. Preserve the original clinical and operational history.</field>
+  </record>
+  <record id="sop_warranty" model="optical.sop">
+    <field name="name">Warranty and aftercare</field>
+    <field name="step">warranty</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Check the recorded dispensing date, warranty terms and issue. Record the customer communication and approved remedy. Use native returns and credit notes. Do not promise an unapproved warranty period.</field>
+  </record>
+  <record id="sop_inventory" model="optical.sop">
+    <field name="name">Inventory management</field>
+    <field name="step">inventory</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Receive and count using native Inventory. Every optical frame uses serial tracking and a distinct optical scan code. Print labels and verify scanner output. Use native stock adjustments, transfers and returns with authorized staff.</field>
+  </record>
+  <record id="sop_day_end" model="optical.sop">
+    <field name="name">End-of-day reconciliation</field>
+    <field name="step">day_end</field>
+    <field name="version">1 — review draft</field>
+    <field name="instructions">Reconcile native POS/cash/bank/accounting totals. Review uncollected jobs, unresolved exceptions, native stock discrepancies and unmatched deposits. Record variance responsibility and follow-up; never maintain a parallel optical ledger.</field>
+  </record>
+</odoo>

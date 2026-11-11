@@ -1,0 +1,267 @@
+from odoo import Command, fields
+from odoo.tests import TransactionCase, tagged, new_test_user
+from odoo.exceptions import AccessError, UserError, ValidationError
+from psycopg2 import IntegrityError
+
+
+@tagged('post_install', '-at_install')
+class TestOptical(TransactionCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        company = cls.env.company
+        common = 'sales_team.group_sale_salesman,stock.group_stock_user,purchase.group_purchase_user'
+        cls.clinician = new_test_user(cls.env, login='optical_clinician', groups=common + ',popspec_optical.group_clinical,popspec_optical.group_manager,account.group_account_invoice')
+        cls.operator = new_test_user(cls.env, login='optical_coordinator', groups=common + ',popspec_optical.group_operator')
+        cls.manager = new_test_user(cls.env, login='optical_nonclinical_manager', groups=common + ',popspec_optical.group_manager')
+        cls.portal = new_test_user(cls.env, login='optical_portal', groups='base.group_portal')
+        for user in cls.clinician | cls.operator | cls.manager:
+            cls.env['hr.employee'].create({'name': user.name, 'user_id': user.id, 'company_id': company.id})
+        cls.patient = cls.env['res.partner'].create({'name': 'Optical test patient'})
+        cls.lab = cls.env['res.partner'].create({'name': 'Optical test laboratory'})
+        cls.product = cls.env['product.product'].create({'name': 'Test optical frame', 'type': 'consu',
+            'is_storable': True, 'tracking': 'serial', 'optical_frame': True, 'list_price': 500})
+        cls.service = cls.env['product.product'].create({'name': 'Test lens service', 'type': 'service', 'list_price': 100})
+        cls.lot = cls.env['stock.lot'].create({'name': 'TEST-SERIAL-01', 'product_id': cls.product.id, 'company_id': company.id})
+        cls.Job = cls.env['optical.job'].with_user(cls.clinician)
+        cls.Rx = cls.env['optical.prescription'].with_user(cls.clinician)
+        cls.sops = {}
+        for stage in ('pre_lab', 'incoming', 'dispense'):
+            sop = cls.env['optical.sop'].with_user(cls.clinician).create({'name': stage, 'step': stage, 'instructions': 'Approved test checklist'})
+            sop.action_approve()
+            cls.sops[stage] = sop
+
+    def _rx(self, **extra):
+        vals = {'patient_id': self.patient.id, 'right_sphere': -1.25, 'left_sphere': -1.0,
+                'change_reason': 'Clinical source entered', 'approval_attestation': True}
+        vals.update(extra)
+        rx = self.Rx.create(vals)
+        rx.action_approve()
+        return rx
+
+    def _job(self, customer=True, **extra):
+        vals = {'patient_id': self.patient.id, 'frame_source': 'customer' if customer else 'stock',
+                'expected_date': fields.Date.today(), 'change_reason': 'Initial pair', 'laboratory_id': self.lab.id}
+        if customer:
+            vals.update(customer_frame_description='Customer black frame', customer_frame_condition='Checked, intact')
+        else:
+            vals['frame_id'] = self.lot.id
+        vals.update(extra)
+        return self.Job.create(vals)
+
+    def _spec(self, job, rx=None):
+        return self.env['optical.job.clinical'].with_user(self.clinician).create({
+            'job_id': job.id, 'prescription_id': (rx or self._rx()).id,
+            'right_lens': 'Single vision, clear', 'left_lens': 'Single vision, clear',
+            'right_pd': 31, 'left_pd': 32, 'change_reason': 'Measurements recorded'})
+
+    def _scan(self, job, event):
+        return self.env['optical.scan.event'].with_user(self.clinician)._record(job, event, job.name, job.frame_code)
+
+    def _qc(self, job, stage, result='pass'):
+        self._scan(job, 'quality')
+        return self.env['optical.quality'].with_user(self.clinician).create({
+            'job_id': job.id, 'stage': stage, 'sop_id': self.sops[stage].id, 'result': result,
+            'identity_checked': True, 'prescription_checked': True,
+            'measurements_checked': True, 'condition_checked': True, 'notes': 'Verified against the approved source.'})
+
+    def _order(self, frame=False):
+        order = self.env['sale.order'].create({'partner_id': self.patient.id, 'order_line': [Command.create({
+            'product_id': (self.product if frame else self.service).id, 'product_uom_qty': 1, 'price_unit': 100})]})
+        order.action_confirm()
+        return order
+
+    def _verified(self):
+        job = self._job(sale_order_id=self._order().id)
+        self._spec(job)
+        self._scan(job, 'reserve')
+        self._qc(job, 'pre_lab')
+        job.action_verify()
+        return job
+
+    def test_01_approved_prescription_is_immutable_and_versioned(self):
+        rx = self._rx()
+        with self.assertRaises(UserError):
+            rx.write({'right_sphere': -2, 'change_reason': 'Attempt overwrite'})
+        with self.assertRaises(UserError):
+            rx.unlink()
+        result = rx.action_new_version()
+        revision = self.Rx.browse(result['res_id'])
+        self.assertEqual(revision.previous_id, rx)
+        self.assertEqual(revision.version, 2)
+        self.assertEqual(revision.state, 'draft')
+        self.assertEqual(rx.right_sphere, -1.25)
+        with self.assertRaises(UserError):
+            rx.action_new_version()
+
+    def test_02_clinical_access_separate_from_management(self):
+        rx = self._rx()
+        for user in self.operator | self.manager | self.portal:
+            with self.assertRaises(AccessError):
+                rx.with_user(user).read(['right_sphere'])
+            with self.assertRaises(AccessError):
+                rx.with_user(user).export_data(['right_sphere'])
+        with self.assertRaises(AccessError):
+            self._job().with_user(self.operator).action_specifications()
+        audit = self.env['optical.audit'].search([('clinical', '=', True), ('record_id', '=', rx.id), ('model_name', '=', rx._name)])
+        with self.assertRaises(AccessError):
+            audit.with_user(self.operator).read(['details'])
+
+    def test_03_direct_state_and_audit_forgery_blocked(self):
+        job = self._job()
+        for vals in [{'state': 'dispensed'}, {'revision': 999}, {'dispensed_by': self.clinician.id}]:
+            with self.assertRaises(UserError):
+                job.write(vals)
+        with self.assertRaises(UserError):
+            self._job(state='dispensed')
+        with self.assertRaises(AccessError):
+            self.env['optical.audit'].with_user(self.operator).create({'action': 'Forged approval'})
+        with self.assertRaises(AccessError):
+            self.env['optical.scan.event'].with_user(self.operator).create({'job_id': job.id})
+
+    def test_04_unique_serial_and_active_allocation(self):
+        self.assertTrue(self.lot.optical_serial)
+        with self.assertRaises(IntegrityError), self.cr.savepoint():
+            self.env['stock.lot'].create({'name': 'OTHER', 'product_id': self.product.id,
+                'company_id': self.env.company.id, 'optical_serial': self.lot.optical_serial})
+        self._job(customer=False)
+        with self.assertRaises(IntegrityError), self.cr.savepoint():
+            self._job(customer=False)
+        with self.assertRaises(UserError):
+            self.lot.write({'optical_serial': 'RENUMBERED'})
+
+    def test_05_wrong_and_duplicate_scans(self):
+        job = self._job()
+        with self.assertRaises(UserError):
+            self.env['optical.scan.event'].with_user(self.operator)._record(job.with_user(self.operator), 'reserve', job.name, 'WRONG')
+        first = self._scan(job, 'reserve')
+        self.assertEqual(first, self._scan(job, 'reserve'))
+        with self.assertRaises(UserError):
+            self._scan(job, 'collect')
+
+    def test_06_specs_invalidate_checks(self):
+        job = self._job(sale_order_id=self._order().id)
+        spec = self._spec(job)
+        self._scan(job, 'reserve')
+        self._qc(job, 'pre_lab')
+        job.action_verify()
+        before = job.revision
+        spec.write({'right_pd': 32, 'change_reason': 'Measurement corrected'})
+        self.assertEqual(job.state, 'draft')
+        self.assertGreater(job.revision, before)
+        with self.assertRaises(UserError):
+            job.action_verify()
+
+    def test_07_failed_latest_quality_blocks_progress(self):
+        job = self._job(sale_order_id=self._order().id)
+        self._spec(job)
+        self._scan(job, 'reserve')
+        self._qc(job, 'pre_lab')
+        self._qc(job, 'pre_lab', 'fail')
+        with self.assertRaises(UserError):
+            job.action_verify()
+        self._qc(job, 'pre_lab')
+        job.action_verify()
+        self.assertEqual(job.state, 'verified')
+
+    def test_08_customer_owned_lab_flow_and_stage_specific_scans(self):
+        job = self._verified()
+        po = self.env['purchase.order'].create({'partner_id': self.lab.id, 'order_line': [Command.create({
+            'product_id': self.service.id, 'product_qty': 1, 'price_unit': 20})]})
+        job.write({'purchase_order_id': po.id, 'change_reason': 'Lab PO linked'})
+        po.button_confirm()
+        self._scan(job, 'dispatch')
+        job.action_dispatch()
+        with self.assertRaises(UserError):
+            job.clinical_ids.write({'right_pd': 30, 'change_reason': 'Late change'})
+        job.write({'supplier_reference': 'ACK-1', 'promised_date': fields.Date.today(), 'change_reason': 'Supplier reply'})
+        job.action_acknowledge()
+        self._scan(job, 'receive')
+        job.action_receive()
+        with self.assertRaises(UserError):
+            job._require_scan('quality')  # Pre-lab scan must not count as an incoming scan.
+        self._qc(job, 'incoming')
+        job.action_ready()
+        with self.assertRaises(UserError):
+            job.action_dispense()
+        self.assertFalse(job.frame_id)
+        self.assertFalse(job.dispatch_picking_id)
+        self.assertEqual(job.state, 'ready')
+
+    def test_09_ticket_snapshot_and_report_access(self):
+        job = self._verified()
+        action = job.action_lab_ticket()
+        ticket = self.env['optical.lab.ticket'].with_user(self.clinician).browse(action['data']['ids']) if action.get('data') else self.env['optical.lab.ticket'].with_user(self.clinician).search([('job_id', '=', job.id)])
+        self.assertEqual(ticket.snapshot['prescription']['right_sphere'], -1.25)
+        with self.assertRaises(AccessError):
+            ticket.write({'snapshot': {}})
+        with self.assertRaises(AccessError):
+            self.env['report.popspec_optical.lab_ticket_document'].with_user(self.operator)._get_report_values(ticket.ids)
+        html, _ = self.env['ir.actions.report'].with_user(self.clinician)._render_qweb_html('popspec_optical.lab_ticket_document', ticket.ids)
+        self.assertIn(b'Single vision', html)
+        job.clinical_ids.write({'right_lens': 'Revised specification', 'change_reason': 'Authorized correction before dispatch'})
+        self.assertEqual(ticket.snapshot['right_lens'], 'Single vision, clear')
+
+    def test_10_patient_and_company_mismatch_rejected(self):
+        other = self.env['res.partner'].create({'name': 'Other patient'})
+        rx = self._rx(patient_id=other.id)
+        job = self._job()
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self._spec(job, rx)
+        company = self.env['res.company'].create({'name': 'Other optical company'})
+        self.clinician.write({'company_ids': [Command.link(company.id)]})
+        self.env['hr.employee'].create({'name': 'Other branch clinician', 'user_id': self.clinician.id, 'company_id': company.id})
+        foreign = self.Rx.with_company(company).create({'patient_id': self.patient.id,
+            'change_reason': 'Other branch draft'})
+        with self.assertRaises(AccessError):
+            foreign.with_context(allowed_company_ids=[self.env.company.id]).read(['right_sphere'])
+        with self.assertRaises(UserError):
+            self.env['optical.job.clinical'].with_user(self.clinician).create({'job_id': job.id, 'company_id': company.id})
+
+    def test_11_no_clinical_fields_on_shared_contacts(self):
+        self.assertNotIn('optical_prescription_ids', self.env['res.partner']._fields)
+        job = self._job()
+        self._spec(job)
+        with self.assertRaises(AccessError):
+            job.with_user(self.operator).read(['clinical_ids'])
+        with self.assertRaises(AccessError):
+            job.with_user(self.portal).read(['name'])
+
+    def test_12_exception_remake_preserves_original(self):
+        job = self._job()
+        case = self.env['optical.case'].with_user(self.manager).create({'name': 'Warranty review', 'job_id': job.id,
+            'kind': 'warranty', 'description': 'Hinge issue', 'resolution': 'Replace frame after inspection',
+            'cost_treatment': 'Use new sales line and supplier claim; no automatic financial entry'})
+        with self.assertRaises(UserError):
+            case.action_remake()
+        case.action_approve()
+        case.action_remake()
+        self.assertEqual(case.replacement_id.remake_of_id, job)
+        self.assertNotEqual(case.replacement_id.name, job.name)
+        self.assertFalse(case.replacement_id.frame_id)
+        with self.assertRaises(UserError):
+            case.action_remake()
+
+    def test_13_sops_require_review_and_become_permanent(self):
+        sop = self.env.ref('popspec_optical.sop_pre_lab')
+        self.assertEqual(sop.state, 'draft')
+        with self.assertRaises(UserError):
+            self.sops['pre_lab'].write({'instructions': 'Replace approved text'})
+        job = self._job()
+        with self.assertRaises(UserError):
+            self.env['optical.sop.signoff'].with_user(self.operator).create({'job_id': job.id, 'sop_id': sop.id, 'notes': 'Attempt'})
+
+    def test_14_employee_attribution_required(self):
+        user = new_test_user(self.env, login='unmapped_optical_user', groups='popspec_optical.group_operator')
+        with self.assertRaises(UserError), self.cr.savepoint():
+            self.Job.with_user(user).create({'patient_id': self.patient.id, 'frame_source': 'customer',
+                'expected_date': fields.Date.today(), 'change_reason': 'No employee mapping'})
+
+    def test_15_stock_reservation_cannot_be_replaced_by_status(self):
+        job = self._job(customer=False, sale_order_id=self._order(frame=True).id)
+        self._spec(job)
+        self._scan(job, 'reserve')
+        self._qc(job, 'pre_lab')
+        with self.assertRaises(UserError):
+            job.action_verify()
+        self.assertEqual(job.state, 'draft')

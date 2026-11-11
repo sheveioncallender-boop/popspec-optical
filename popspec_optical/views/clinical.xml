@@ -1,0 +1,33 @@
+<odoo>
+  <record id="rx_list" model="ir.ui.view"><field name="name">optical.prescription.list</field><field name="model">optical.prescription</field><field name="arch" type="xml">
+    <list><field name="name"/><field name="patient_id"/><field name="version"/><field name="examination_date"/><field name="valid_until"/><field name="state" widget="badge"/><field name="approved_by"/><field name="company_id" groups="base.group_multi_company"/></list>
+  </field></record>
+  <record id="rx_form" model="ir.ui.view"><field name="name">optical.prescription.form</field><field name="model">optical.prescription</field><field name="arch" type="xml">
+    <form string="Restricted prescription" duplicate="false" delete="false">
+      <header><button name="action_approve" type="object" string="Approve prescription" class="btn-primary" invisible="state != 'draft'"/><button name="action_new_version" type="object" string="Create new version" invisible="state != 'approved'"/><field name="state" widget="statusbar"/></header>
+      <sheet><div class="alert alert-info" role="alert">Restricted clinical record. Approved versions cannot be overwritten. Do not copy clinical details into contacts, sales descriptions or shared chatter.</div>
+        <h1><field name="name"/></h1>
+        <group><group><field name="patient_id" readonly="state != 'draft'"/><field name="version"/><field name="previous_id"/><field name="company_id" groups="base.group_multi_company"/></group><group><field name="examination_date" readonly="state != 'draft'"/><field name="valid_until" readonly="state != 'draft'"/><field name="approved_by"/><field name="approved_at"/></group></group>
+        <group><group string="Right eye (OD)"><field name="right_sphere" readonly="state != 'draft'"/><field name="right_cylinder" readonly="state != 'draft'"/><field name="right_axis" readonly="state != 'draft'"/><field name="right_add" readonly="state != 'draft'"/><field name="right_prism" readonly="state != 'draft'"/></group><group string="Left eye (OS)"><field name="left_sphere" readonly="state != 'draft'"/><field name="left_cylinder" readonly="state != 'draft'"/><field name="left_axis" readonly="state != 'draft'"/><field name="left_add" readonly="state != 'draft'"/><field name="left_prism" readonly="state != 'draft'"/></group></group>
+        <group><field name="clinical_notes" readonly="state != 'draft'"/><field name="change_reason" readonly="state != 'draft'"/><field name="approval_attestation" readonly="state != 'draft'"/></group>
+      </sheet>
+    </form>
+  </field></record>
+  <record id="clinical_form" model="ir.ui.view"><field name="name">optical.job.clinical.form</field><field name="model">optical.job.clinical</field><field name="arch" type="xml">
+    <form string="Restricted lens specifications" duplicate="false" delete="false"><sheet>
+      <group><field name="job_id"/><field name="prescription_id"/><field name="company_id" groups="base.group_multi_company"/></group>
+      <group><group string="Right lens"><field name="right_lens"/><field name="right_pd"/><field name="right_height"/></group><group string="Left lens"><field name="left_lens"/><field name="left_pd"/><field name="left_height"/></group></group>
+      <group><field name="lab_instructions"/><field name="change_reason"/></group>
+    </sheet></form>
+  </field></record>
+  <record id="quality_list" model="ir.ui.view"><field name="name">optical.quality.list</field><field name="model">optical.quality</field><field name="arch" type="xml">
+    <list decoration-danger="result == 'fail'"><field name="job_id"/><field name="revision"/><field name="stage"/><field name="result" widget="badge"/><field name="sop_id"/><field name="checked_by"/><field name="checked_at"/></list>
+  </field></record>
+  <record id="quality_form" model="ir.ui.view"><field name="name">optical.quality.form</field><field name="model">optical.quality</field><field name="arch" type="xml">
+    <form string="Quality decision" duplicate="false" delete="false"><sheet>
+      <div class="alert alert-info" role="alert">Scan the job and frame using Quality control before recording this check. Saved decisions are permanent. Record a new check after correcting a failure.</div>
+      <group><group><field name="job_id" readonly="id"/><field name="stage" readonly="id"/><field name="revision"/><field name="sop_id" domain="[('state','=','active'),('step','=',stage)]" readonly="id"/></group><group><field name="checked_by"/><field name="employee_id"/><field name="checked_at"/></group></group>
+      <group><field name="identity_checked" readonly="id"/><field name="prescription_checked" readonly="id"/><field name="measurements_checked" readonly="id"/><field name="condition_checked" readonly="id"/><field name="notes" readonly="id"/><field name="result" widget="radio" readonly="id"/></group>
+    </sheet></form>
+  </field></record>
+</odoo>

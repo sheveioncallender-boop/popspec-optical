@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_job,Optical jobs,model_optical_job,group_operator,1,1,1,0
+access_prescription,Restricted prescriptions,model_optical_prescription,group_clinical,1,1,1,0
+access_clinical,Restricted lens specifications,model_optical_job_clinical,group_clinical,1,1,1,0
+access_quality,Restricted QC,model_optical_quality,group_clinical,1,0,1,0
+access_audit,Audit events,model_optical_audit,group_operator,1,0,0,0
+access_scan,Scan evidence,model_optical_scan_event,group_operator,1,0,1,0
+access_scan_wizard,Optical scan wizard,model_optical_scan_wizard,group_operator,1,1,1,1
+access_sop,Read SOPs,model_optical_sop,group_operator,1,0,0,0
+access_sop_manager,Manage SOPs,model_optical_sop,group_manager,1,1,1,0
+access_signoff,SOP signoffs,model_optical_sop_signoff,group_operator,1,0,1,0
+access_case,Optical exceptions,model_optical_case,group_operator,1,1,1,0
+access_ticket,Restricted laboratory tickets,model_optical_lab_ticket,group_clinical,1,0,1,0

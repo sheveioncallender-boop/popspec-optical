@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="native_sale" model="ir.ui.view">
+    <field name="name">sale.order.optical</field>
+    <field name="model">sale.order</field>
+    <field name="inherit_id" ref="sale.view_order_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//notebook" position="inside">
+        <page string="Optical jobs" groups="popspec_optical.group_operator">
+          <field name="optical_job_ids" readonly="1"/>
+        </page>
+      </xpath>
+    </field>
+  </record>
+  <record id="native_purchase" model="ir.ui.view">
+    <field name="name">purchase.order.optical</field>
+    <field name="model">purchase.order</field>
+    <field name="inherit_id" ref="purchase.purchase_order_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//notebook" position="inside">
+        <page string="Optical jobs" groups="popspec_optical.group_operator">
+          <field name="optical_job_ids" readonly="1"/>
+        </page>
+      </xpath>
+    </field>
+  </record>
+  <record id="native_partner" model="ir.ui.view">
+    <field name="name">res.partner.optical</field>
+    <field name="model">res.partner</field>
+    <field name="inherit_id" ref="base.view_partner_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//notebook" position="inside">
+        <page string="Optical jobs" groups="popspec_optical.group_operator">
+          <field name="optical_job_ids" readonly="1"/>
+        </page>
+      </xpath>
+    </field>
+  </record>
+  <record id="native_frame" model="ir.ui.view">
+    <field name="name">stock.lot.optical</field>
+    <field name="model">stock.lot</field>
+    <field name="inherit_id" ref="stock.view_production_lot_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='ref']" position="after">
+        <field name="optical_serial"/>
+        <button name="action_assign_optical_codes" type="object" string="Assign optical scan code" groups="stock.group_stock_manager" invisible="optical_serial"/>
+      </xpath>
+    </field>
+  </record>
+  <record id="native_product" model="ir.ui.view">
+    <field name="name">product.template.optical</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet" position="inside">
+        <group string="Optical identification" groups="stock.group_stock_user">
+          <field name="optical_frame"/>
+        </group>
+      </xpath>
+    </field>
+  </record>
+</odoo>

@@ -1,0 +1,9 @@
+<odoo>
+  <record id="scan_form" model="ir.ui.view"><field name="name">optical.scan.form</field><field name="model">optical.scan.wizard</field><field name="arch" type="xml">
+    <form string="Scan job and physical frame">
+      <div class="alert alert-info" role="alert">Use the unique frame label. The SKU barcode alone does not identify a physical frame. Receiving, transfers and stocktaking stay in Odoo Inventory.</div>
+      <group><field name="job_id"/><field name="event"/><field name="job_code"/><field name="frame_code"/></group>
+      <footer><button name="action_confirm" type="object" string="Verify scan" class="btn-primary"/><button string="Cancel" special="cancel"/></footer>
+    </form>
+  </field></record>
+</odoo>

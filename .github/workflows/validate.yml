@@ -1,0 +1,61 @@
+name: Optical Odoo 19 validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libldap2-dev libsasl2-dev libpq-dev libxml2-dev libxslt1-dev libjpeg-dev zlib1g-dev
+      - name: Check out reviewed Odoo 19 source
+        run: |
+          git init /tmp/odoo
+          git -C /tmp/odoo remote add origin https://github.com/odoo/odoo.git
+          git -C /tmp/odoo fetch --depth=1 origin e5164977aa55016422e83da70c08f61d32cac0de
+          git -C /tmp/odoo checkout FETCH_HEAD
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -r /tmp/odoo/requirements.txt
+          python -m pip install tinycss2 websocket-client
+      - name: Static source checks
+        run: python scripts/validate.py
+      - name: Clean install and optical workflow/security tests
+        run: |
+          python /tmp/odoo/odoo-bin -d popspec_optical_test --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo_test_only --addons-path=/tmp/odoo/addons,$GITHUB_WORKSPACE -i popspec_optical --without-demo=True --test-enable --test-tags=/popspec_optical --stop-after-init --http-port=8069 --log-level=test --logfile=/tmp/popspec-optical-install.log
+      - name: Upgrade existing records
+        run: |
+          python /tmp/odoo/odoo-bin -d popspec_optical_test --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo_test_only --addons-path=/tmp/odoo/addons,$GITHUB_WORKSPACE -u popspec_optical --without-demo=True --stop-after-init --http-port=8069 --log-level=info --logfile=/tmp/popspec-optical-upgrade.log
+      - name: Print Odoo diagnostics on failure
+        if: failure()
+        run: tail -n 250 /tmp/popspec-*.log || true
+      - name: Save test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: popspec-optical-test-logs
+          path: /tmp/popspec-*.log

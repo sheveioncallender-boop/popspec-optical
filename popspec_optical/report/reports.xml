@@ -1,0 +1,28 @@
+<odoo>
+  <record id="report_lab_ticket" model="ir.actions.report">
+    <field name="name">Restricted laboratory ticket</field><field name="model">optical.lab.ticket</field><field name="report_type">qweb-pdf</field><field name="report_name">popspec_optical.lab_ticket_document</field>
+    <field name="binding_model_id" ref="model_optical_lab_ticket"/><field name="binding_type">report</field><field name="group_ids" eval="[(4, ref('group_clinical'))]"/>
+  </record>
+  <template id="lab_ticket_document"><t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page">
+    <h2>POP SPEC LTD — Laboratory ticket</h2><h3 t-esc="o.name"/><p>Restricted: laboratory use only. Identify the pair by job number.</p>
+    <t t-set="s" t-value="o.snapshot"/><t t-set="rx" t-value="s['prescription']"/>
+    <p>Laboratory: <span t-esc="s['laboratory']"/> · Due: <span t-esc="s['due_date']"/></p>
+    <p>Frame: <span t-esc="s['frame']['code']"/> · <span t-esc="s['frame']['sku']"/> · <span t-esc="s['frame']['name']"/></p>
+    <p t-if="s['frame']['customer_frame']">Customer frame: <span t-esc="s['frame']['customer_frame']"/> · Condition: <span t-esc="s['frame']['condition']"/></p>
+    <p>Prescription: <span t-esc="rx['name']"/> · Version <span t-esc="rx['version']"/></p>
+    <table class="table table-sm"><thead><tr><th>Eye</th><th>Sphere</th><th>Cylinder</th><th>Axis</th><th>Add</th><th>Prism / base</th><th>PD mm</th><th>Height mm</th></tr></thead><tbody>
+      <tr t-foreach="['right','left']" t-as="side"><td t-esc="side.title()"/><td t-esc="rx[side+'_sphere']"/><td t-esc="rx[side+'_cylinder']"/><td t-esc="rx[side+'_axis']"/><td t-esc="rx[side+'_add']"/><td t-esc="rx[side+'_prism']"/><td t-esc="s[side+'_pd']"/><td t-esc="s[side+'_height']"/></tr>
+    </tbody></table>
+    <h4>Right lens</h4><p style="white-space: pre-wrap" t-esc="s['right_lens']"/><h4>Left lens</h4><p style="white-space: pre-wrap" t-esc="s['left_lens']"/>
+    <h4>Laboratory instructions</h4><p style="white-space: pre-wrap" t-esc="s['lab_instructions']"/>
+    <p>Issued <span t-field="o.issued_at"/> by <span t-field="o.issued_by"/>. Changes require a new verified revision.</p>
+    <div t-field="o.job_id.name" t-options="{'widget': 'barcode', 'symbology': 'Code128', 'width': 500, 'height': 80, 'img_style': 'width:250px;height:40px'}"/>
+  </div></t></t></t></template>
+  <record id="report_job_label" model="ir.actions.report">
+    <field name="name">Optical job and frame labels</field><field name="model">optical.job</field><field name="report_type">qweb-pdf</field><field name="report_name">popspec_optical.job_label_document</field><field name="binding_model_id" ref="model_optical_job"/><field name="binding_type">report</field><field name="group_ids" eval="[(4, ref('group_operator'))]"/>
+  </record>
+  <template id="job_label_document"><t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page">
+    <h3>POP SPEC LTD</h3><p>Job label: <span t-field="o.name"/></p><div t-field="o.name" t-options="{'widget':'barcode','symbology':'Code128','width':600,'height':100,'img_style':'width:300px;height:50px'}"/>
+    <p>Physical frame label: <span t-field="o.frame_code"/></p><div t-if="o.frame_code" t-field="o.frame_code" t-options="{'widget':'barcode','symbology':'Code128','width':600,'height':100,'img_style':'width:300px;height:50px'}"/>
+  </div></t></t></t></template>
+</odoo>

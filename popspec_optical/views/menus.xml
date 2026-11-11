@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="action_job" model="ir.actions.act_window">
+    <field name="name">Optical Jobs</field>
+    <field name="res_model">optical.job</field>
+    <field name="view_mode">kanban,list,form</field>
+  </record>
+  <record id="action_prescription" model="ir.actions.act_window">
+    <field name="name">Prescriptions</field>
+    <field name="res_model">optical.prescription</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_quality" model="ir.actions.act_window">
+    <field name="name">Quality Decisions</field>
+    <field name="res_model">optical.quality</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_lab_ticket" model="ir.actions.act_window">
+    <field name="name">Laboratory Tickets</field>
+    <field name="res_model">optical.lab.ticket</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_case" model="ir.actions.act_window">
+    <field name="name">Exceptions and Aftercare</field>
+    <field name="res_model">optical.case</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_sop" model="ir.actions.act_window">
+    <field name="name">Standard Operating Procedures</field>
+    <field name="res_model">optical.sop</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_sop_signoff" model="ir.actions.act_window">
+    <field name="name">SOP Completion</field>
+    <field name="res_model">optical.sop.signoff</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <record id="action_audit" model="ir.actions.act_window">
+    <field name="name">Audit Trail</field>
+    <field name="res_model">optical.audit</field>
+    <field name="view_mode">list,form</field>
+  </record>
+  <menuitem id="menu_optical" name="Optical" sequence="15" groups="group_operator"/>
+  <menuitem id="menu_job" name="Jobs" parent="menu_optical" action="action_job" sequence="10"/>
+  <menuitem id="menu_prescription" name="Prescriptions" parent="menu_optical" action="action_prescription" sequence="20" groups="group_clinical"/>
+  <menuitem id="menu_quality" name="Quality Decisions" parent="menu_optical" action="action_quality" sequence="30" groups="group_clinical"/>
+  <menuitem id="menu_lab_ticket" name="Laboratory Tickets" parent="menu_optical" action="action_lab_ticket" sequence="40" groups="group_clinical"/>
+  <menuitem id="menu_case" name="Exceptions and Aftercare" parent="menu_optical" action="action_case" sequence="50"/>
+  <menuitem id="menu_sop_signoff" name="SOP Completion" parent="menu_optical" action="action_sop_signoff" sequence="60"/>
+  <menuitem id="menu_sop" name="SOP Library" parent="menu_optical" action="action_sop" sequence="70"/>
+  <menuitem id="menu_audit" name="Audit Trail" parent="menu_optical" action="action_audit" sequence="80"/>
+</odoo>
