@@ -428,10 +428,14 @@ class TestOptical(AccountTestInvoicingCommon):
         with self.assertRaises(AccessError):
             renderer._get_report_values(foreign_job.ids)
         job = self._job(sale_order_id=self._order().id)
-        action = job.with_user(self.operator).action_open_sale_order()
+        # The coordinator only sees their own native sales. Optical access must
+        # not silently grant access to another salesperson's quotation.
+        with self.assertRaises(AccessError):
+            job.with_user(self.operator).action_open_sale_order()
+        action = job.action_open_sale_order()
         self.assertEqual(action['res_model'], 'sale.order')
         self.assertEqual(action['res_id'], job.sale_order_id.id)
-        order_action = job.sale_order_id.with_user(self.operator).action_view_optical_jobs()
+        order_action = job.sale_order_id.action_view_optical_jobs()
         self.assertEqual(order_action['context']['default_sale_order_id'], job.sale_order_id.id)
         with self.assertRaises(AccessError):
             job.with_user(self.portal).action_open_sale_order()

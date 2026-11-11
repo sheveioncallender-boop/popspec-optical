@@ -33,7 +33,7 @@
         <table class="table table-sm"><tbody>
           <tr><th>Physical frame code</th><td><span t-field="o.frame_code"/></td><th>Serial</th><td><span t-field="o.frame_id.name"/></td></tr>
           <tr t-if="o.frame_source == 'stock'"><th>SKU / frame</th><td colspan="3"><span t-esc="s.get('sku', o.frame_product_id.default_code)"/> · <span t-esc="s.get('name', o.frame_product_id.name)"/></td></tr>
-          <tr t-if="o.frame_source == 'stock'"><th>Brand / model / colour</th><td colspan="3"><span t-esc="s.get('brand', o.frame_product_id.optical_brand)"/> / <span t-esc="s.get('model', o.frame_product_id.optical_model)"/> / <span t-esc="s.get('colour', o.frame_product_id.optical_colour)"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>Brand / model / colour</th><td colspan="3"><span t-esc="s.get('brand', '' if s else o.frame_product_id.optical_brand)"/> / <span t-esc="s.get('model', '' if s else o.frame_product_id.optical_model)"/> / <span t-esc="s.get('colour', '' if s else o.frame_product_id.optical_colour)"/></td></tr>
           <tr t-if="o.frame_source == 'customer'"><th>Customer frame</th><td colspan="3" style="white-space:pre-wrap;"><span t-field="o.customer_frame_description"/></td></tr>
           <tr t-if="o.frame_source == 'customer'"><th>Intake condition</th><td colspan="3" style="white-space:pre-wrap;"><span t-field="o.customer_frame_condition"/></td></tr>
         </tbody></table>
@@ -87,8 +87,8 @@
           <tr><th>Examination date</th><td><span t-field="o.examination_date"/></td><th>Valid until</th><td><span t-field="o.valid_until"/></td></tr>
         </tbody></table>
         <table class="table table-bordered table-sm"><thead><tr><th>Eye</th><th>Sphere</th><th>Cylinder</th><th>Axis</th><th>Add</th><th>Prism / base</th></tr></thead><tbody>
-          <tr><th>Right (OD)</th><td t-field="o.right_sphere"/><td t-field="o.right_cylinder"/><td t-field="o.right_axis"/><td t-field="o.right_add"/><td t-field="o.right_prism"/></tr>
-          <tr><th>Left (OS)</th><td t-field="o.left_sphere"/><td t-field="o.left_cylinder"/><td t-field="o.left_axis"/><td t-field="o.left_add"/><td t-field="o.left_prism"/></tr>
+          <tr><th>Right (OD)</th><td><span t-field="o.right_sphere"/></td><td><span t-field="o.right_cylinder"/></td><td><span t-field="o.right_axis"/></td><td><span t-field="o.right_add"/></td><td><span t-field="o.right_prism"/></td></tr>
+          <tr><th>Left (OS)</th><td><span t-field="o.left_sphere"/></td><td><span t-field="o.left_cylinder"/></td><td><span t-field="o.left_axis"/></td><td><span t-field="o.left_add"/></td><td><span t-field="o.left_prism"/></td></tr>
         </tbody></table>
         <h4>Clinical notes</h4><p style="white-space:pre-wrap;" t-field="o.clinical_notes"/>
         <p t-if="o.state == 'approved'">Approved by <span t-field="o.approved_by.name"/> on <span t-field="o.approved_at"/>. This approved version is retained unchanged.</p>

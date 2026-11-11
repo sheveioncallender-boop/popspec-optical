@@ -1,6 +1,6 @@
-# Pop Spec optical operations — agreed future scope
+# Pop Spec optical operations — complete client requirements
 
-Status: requirements retained for the subsequent optical module; not implemented in the website release. Platform: **Odoo 19 Community**. Preserve native Odoo navigation, records and transaction workflows. Extend existing apps with optical-specific records, smart buttons, fields, security and gates. Do not create parallel stock, purchasing, invoicing, payment or employee ledgers. Every client requirement below remains in scope; none is silently removed because an integration needs a provider or a paid/third-party component.
+Status: original requirements retained for the optical module. See RELEASE_SCOPE.md for current implementation and remaining acceptance; installation alone does not mean every requirement is complete. Platform: **Odoo 19 Community**. Preserve native Odoo navigation, records and transaction workflows. Extend existing apps with optical-specific records, smart buttons, fields, security and gates. Do not create parallel stock, purchasing, invoicing, payment or employee ledgers. Every client requirement below remains in scope; none is silently removed because an integration needs a provider or a paid/third-party component.
 
 ## Business coverage and acceptance
 
