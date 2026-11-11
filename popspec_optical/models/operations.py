@@ -235,6 +235,10 @@ class OpticalJob(models.Model):
             super(OpticalJob, r).write({'frame_snapshot': {
                 'code': r.frame_code, 'sku': product.default_code or '', 'name': product.display_name or '',
                 'attributes': product.product_template_attribute_value_ids.mapped('name') if product else [],
+                'brand': product.optical_brand or '', 'model': product.optical_model or '',
+                'colour': product.optical_colour or '',
+                'eye_size': product.optical_eye_size or 0, 'bridge_size': product.optical_bridge_size or 0,
+                'temple_length': product.optical_temple_length or 0,
                 'customer_frame': r.customer_frame_description or '', 'condition': r.customer_frame_condition or '',
             }})
             r._set_stage('verified')

@@ -1,6 +1,6 @@
 # Pop Spec Optical Operations — Odoo 19
 
-Version **19.0.1.0.0** · Spxcorp Limited · LGPL-3
+Version **19.0.1.1.0** · Spxcorp Limited · LGPL-3
 
 First operational release for controlled spectacle jobs. This is separate from `popspec_website` and extends native Odoo Sales, Purchase, Inventory, Accounting and Employees. It does not create a second stock, invoice, payment or HR ledger.
 
@@ -14,7 +14,10 @@ First operational release for controlled spectacle jobs. This is separate from `
 - Lab supplier/PO links, manual acknowledgment/progress, promised dates, overdue jobs and immutable restricted lab-ticket versions.
 - Dispensing attribution, native delivery/payment checks, warranty/follow-up dates and activities.
 - Approved exception/remake cases, draft SOP library, versioned approved SOPs, signoffs and immutable application-level audit records.
-- Native list, form and Kanban views; links on Contacts, Sales and Purchase; printable job/frame labels and restricted lab tickets.
+- Native list, form and Kanban views with stage guidance, overdue/aftercare filters and direct links from Contacts and Sales.
+- Visible print actions for operational job sheets, job/frame labels, collection references, restricted prescriptions and restricted lab tickets. Operational documents exclude prescription and lens details.
+- Structured frame brand/model/colour/dimensions, preserved in the verified frame snapshot; native product variants, suppliers, pricing and stock remain authoritative.
+- Job selectors in aftercare, SOP completion and clinical/QC forms work before a related company has been populated, with company rules still enforced.
 
 ## Installation on CloudPepper
 
@@ -22,6 +25,10 @@ First operational release for controlled spectacle jobs. This is separate from `
 2. Pull/build the addons, then update the Odoo Apps list and install **Pop Spec Optical Operations**. Existing website products and pages are not rewritten by this module.
 3. Follow [SETUP.md](docs/SETUP.md) before entering real patient records or live jobs. In particular, assign roles, map each staff login to an employee, approve the client's SOPs and configure native stock/accounting.
 4. Use a staging database and the acceptance checklist before production. Installation alone is not clinical, financial, hardware or integration acceptance.
+
+For an existing installation, pull branch `main` in CloudPepper, rebuild/restart its addons as required, then upgrade **Pop Spec Optical Operations** to **19.0.1.1.0**. Refresh the browser after upgrading. Existing jobs and approved evidence are preserved; this update does not approve SOPs or create inventory, payments or patient records.
+
+[DAILY_USE.md](docs/DAILY_USE.md) explains the operating screens, print documents and walkthrough checks.
 
 ## Scope and acceptance
 

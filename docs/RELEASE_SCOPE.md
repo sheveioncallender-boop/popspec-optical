@@ -1,10 +1,10 @@
 # Release coverage and remaining acceptance
 
-This is the first operational release, not a declaration that all client requirements are complete. Every original requirement remains in scope.
+Version 19.0.1.1.0 improves the first operational release. It is not a declaration that all client requirements are complete. Every original requirement remains in scope.
 
 | Client area | Included now | Remaining before full go-live |
 |---|---|---|
-| Frame identity | Native SKU/serial + globally unique optical code, active-job uniqueness, frame snapshot | Existing stock reconciliation, supplier/acquisition-cost presentation, actual receiving/count/label hardware tests |
+| Frame identity | Native SKU/serial + globally unique optical code, active-job uniqueness, structured brand/model/colour/dimensions and verified frame snapshot | Existing stock reconciliation, supplier/acquisition-cost presentation, actual receiving/count/label hardware tests |
 | Patient links | Contact → immutable prescription → clinical specs → job → native sale/PO/transfers/invoices → dispensing | Historical migration, detailed payment/refund allocation per pair on multi-pair orders |
 | Job orders | One pair per job, both lenses, measurements, approvals, due dates | Client-approved clinical fields/ranges and credit/deposit policies |
 | Scanning | Job/frame checks for reservation, dispatch, receipt, QC, collection, returns; native movement evidence | Physical scanners, printer formats, stocktaking/return scenarios and concurrent multi-user acceptance |
@@ -18,10 +18,11 @@ This is the first operational release, not a declaration that all client require
 | Door access | Requirement retained | Actual controller/reader identification and event adapter, duplicate/offline handling and exception reports |
 | Marketing | Native follow-up activities/dates and UTM/source fields | Opt-in/out model, WhatsApp/SMS/email providers, loyalty, campaign delivery/result validation |
 | Ecommerce | Existing separate website catalogue preserved | Capacity-based bookings, payment provider, order-to-job workflow and referral attribution journey tests |
+| Daily operation and printing | Stage guidance, all-stage Kanban, targeted filters, native document links, aftercare/SOP shortcuts; operational job sheet, labels, collection reference, restricted prescription and lab-ticket reports | Live printer/PDF layout acceptance, chosen label stock and user walkthrough after upgrade |
 
 ## Tests in this repository
 
-Automated tests target prescription immutability/versioning, clinical access including export/report paths, company isolation, employee attribution, immutable evidence, direct workflow bypass attempts, unique physical allocation, wrong/duplicate scans, check invalidation, latest failed-check blocking, customer-owned lab processing, restricted ticket snapshots and approved remake behavior. Native receiving/dispatch/receipt/delivery and financial paths require additional scenario tests and client acceptance before production.
+Automated tests cover prescription immutability/versioning, clinical access including export/report paths, company isolation, employee attribution, immutable evidence, direct workflow bypass attempts, unique physical allocation, wrong/duplicate scans, check invalidation, latest failed-check blocking, customer-owned lab processing, restricted ticket snapshots and approved remake behavior. They also exercise a complete native reserved-stock → lab dispatch → return → final delivery → invoice/payment → dispensing path. Version 19.0.1.1.0 adds new-form job-selector regression checks, operational/clinical report separation, draft print wording and cross-company print protection. Physical receipt/count/return scenarios, device tests and client acceptance remain required before production.
 
 ## Inputs needed for the next implementation stage
 

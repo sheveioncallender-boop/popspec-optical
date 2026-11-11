@@ -3,6 +3,8 @@ from odoo.tests import tagged, new_test_user
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2 import IntegrityError
+from lxml import etree
+from odoo.tools.safe_eval import safe_eval
 
 
 @tagged('post_install', '-at_install')
@@ -286,6 +288,9 @@ class TestOptical(AccountTestInvoicingCommon):
         self.assertEqual(job.state, 'draft')
 
     def test_16_native_stock_invoice_and_dispensing_flow(self):
+        self.product.write({'optical_brand': 'Fixture Brand', 'optical_model': 'F100',
+                            'optical_colour': 'Black', 'optical_eye_size': 52,
+                            'optical_bridge_size': 18, 'optical_temple_length': 140})
         warehouse = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
         stock = warehouse.lot_stock_id
         lab_location = self.env['stock.location'].create({'name': 'Company frames at lab', 'usage': 'internal',
@@ -301,6 +306,9 @@ class TestOptical(AccountTestInvoicingCommon):
         self._scan(job, 'reserve')
         self._qc(job, 'pre_lab')
         job.action_verify()
+        self.assertEqual(job.frame_snapshot['brand'], 'Fixture Brand')
+        self.product.write({'optical_brand': 'Updated catalogue brand'})
+        self.assertEqual(job.frame_snapshot['brand'], 'Fixture Brand')
         delivery.move_ids.picked = True
         with self.assertRaises(UserError), self.cr.savepoint():
             delivery.with_user(self.clinician).button_validate()
@@ -353,3 +361,75 @@ class TestOptical(AccountTestInvoicingCommon):
         self.assertEqual(job.dispensed_by, self.clinician)
         self.assertTrue(job.dispensed_at)
         self.assertEqual(self.lot.product_qty, 0)
+
+    def test_17_new_job_selectors_do_not_filter_on_unset_related_company(self):
+        job = self._job()
+        company_id = job.company_id.id
+        for model in ('optical.case', 'optical.sop.signoff', 'optical.quality', 'optical.job.clinical'):
+            records = self.env[model].with_user(self.clinician).with_context(allowed_company_ids=[company_id])
+            arch = etree.fromstring(records.get_view(view_type='form')['arch'])
+            selector = arch.xpath('//field[@name="job_id"]')[0]
+            # This is the domain the web form evaluates before it has a job/company.
+            domain = safe_eval(selector.get('domain'), {'context': {'allowed_company_ids': [company_id]}, 'company_id': False})
+            self.assertIn(job, self.Job.search(domain))
+            self.assertNotIn(('company_id', '=', False), domain)
+        case = self.env['optical.case'].with_user(self.operator).create({
+            'name': 'Intake concern', 'job_id': job.id, 'kind': 'complaint', 'description': 'Fixture concern'})
+        self.assertEqual(case.company_id, job.company_id)
+        self.assertEqual(job.action_open_cases()['context']['default_job_id'], job.id)
+        self.assertEqual(job.open_case_count, 1)
+        self.assertEqual(job.action_complete_sop()['context']['default_job_id'], job.id)
+
+    def test_18_operational_prints_exclude_clinical_data_and_do_not_complete_collection(self):
+        job = self._job()
+        rx = self._rx(clinical_notes='PRIVATE-CLINICAL-MARKER')
+        self._spec(job, rx)
+        for template in ('job_sheet_document', 'collection_document', 'job_label_document'):
+            html, _ = self.env['ir.actions.report'].with_user(self.operator)._render_qweb_html(
+                'popspec_optical.' + template, job.ids)
+            self.assertIn(job.name.encode(), html)
+            self.assertNotIn(b'PRIVATE-CLINICAL-MARKER', html)
+            self.assertNotIn(b'Single vision, clear', html)
+            if template == 'collection_document':
+                self.assertIn(b'Collection is not recorded as complete.', html)
+            with self.assertRaises(AccessError):
+                self.env['report.popspec_optical.' + template].with_user(self.portal)._get_report_values(job.ids)
+        self.assertEqual(job.state, 'draft')
+        self.assertFalse(job.collection_confirmed)
+        self.assertFalse(job.dispensed_at)
+
+    def test_19_prescription_print_requires_clinical_role_and_labels_drafts(self):
+        rx = self.Rx.create({'patient_id': self.patient.id, 'change_reason': 'Print fixture',
+                             'clinical_notes': 'PRIVATE-PRESCRIPTION-MARKER'})
+        for user in self.operator | self.manager | self.portal:
+            with self.assertRaises(AccessError):
+                self.env['report.popspec_optical.prescription_document'].with_user(user)._get_report_values(rx.ids)
+            with self.assertRaises(AccessError):
+                rx.with_user(user).action_print_prescription()
+        html, _ = self.env['ir.actions.report'].with_user(self.clinician)._render_qweb_html(
+            'popspec_optical.prescription_document', rx.ids)
+        self.assertIn(b'DRAFT', html)
+        self.assertIn(b'PRIVATE-PRESCRIPTION-MARKER', html)
+        self.assertEqual(rx.state, 'draft')
+        audit = self.env['optical.audit'].search([('record_id', '=', rx.id),
+            ('model_name', '=', rx._name), ('action', '=', 'Prescription printed')])
+        self.assertTrue(audit)
+        self.assertTrue(all(audit.mapped('clinical')))
+
+    def test_20_prints_and_smart_actions_preserve_company_and_native_access(self):
+        company = self.env['res.company'].create({'name': 'Print isolation company'})
+        self.clinician.write({'company_ids': [Command.link(company.id)]})
+        self.env['hr.employee'].create({'name': 'Print isolation staff', 'user_id': self.clinician.id, 'company_id': company.id})
+        foreign_job = self.Job.with_company(company).create({'patient_id': self.patient.id,
+            'frame_source': 'customer', 'expected_date': fields.Date.today(), 'change_reason': 'Other company'})
+        renderer = self.env['report.popspec_optical.job_sheet_document'].with_user(self.clinician).with_context(allowed_company_ids=[self.env.company.id])
+        with self.assertRaises(AccessError):
+            renderer._get_report_values(foreign_job.ids)
+        job = self._job(sale_order_id=self._order().id)
+        action = job.with_user(self.operator).action_open_sale_order()
+        self.assertEqual(action['res_model'], 'sale.order')
+        self.assertEqual(action['res_id'], job.sale_order_id.id)
+        with self.assertRaises(AccessError):
+            job.with_user(self.portal).action_open_sale_order()
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self.product.optical_eye_size = -1

@@ -1,0 +1,134 @@
+<odoo>
+  <record id="job_form_usability" model="ir.ui.view">
+    <field name="name">optical.job.form.usability</field>
+    <field name="model">optical.job</field>
+    <field name="inherit_id" ref="job_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet/h1" position="after">
+        <div class="alert alert-info" role="status"><strong>Next step</strong><div><field name="next_step" nolabel="1"/></div></div>
+      </xpath>
+      <xpath expr="//div[@name='button_box']" position="inside">
+        <button name="action_open_sale_order" type="object" class="oe_stat_button" icon="fa-shopping-cart" string="Quotation / order" invisible="not sale_order_id"/>
+        <button name="action_open_purchase_order" type="object" class="oe_stat_button" icon="fa-truck" string="Lab purchase order" invisible="not purchase_order_id"/>
+        <button name="action_open_cases" type="object" class="oe_stat_button" icon="fa-life-ring"><field name="open_case_count" widget="statinfo" string="Open aftercare cases"/></button>
+      </xpath>
+      <xpath expr="//notebook" position="before">
+        <div class="d-flex flex-wrap gap-2 mb-3" name="optical_print_actions">
+          <button name="action_print_job_sheet" type="object" string="Print job sheet" icon="fa-print" class="btn-secondary"/>
+          <button name="action_print_labels" type="object" string="Print job + frame labels" icon="fa-barcode" class="btn-secondary"/>
+          <button name="action_print_collection" type="object" string="Print collection reference" icon="fa-file-text-o" class="btn-secondary"/>
+        </div>
+      </xpath>
+      <xpath expr="//field[@name='patient_id']/.." position="attributes"><attribute name="string">Customer and quotation</attribute></xpath>
+      <xpath expr="//field[@name='expected_date']/.." position="attributes"><attribute name="string">Delivery and change history</attribute></xpath>
+      <xpath expr="//field[@name='sale_order_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='sale_line_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute><attribute name="domain">[('order_id','=',sale_order_id),('display_type','=',False),('product_uom_qty','=',1),('product_id','=',frame_product_id)]</attribute></xpath>
+      <xpath expr="//field[@name='frame_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='frame_source']" position="attributes"><attribute name="widget">radio</attribute><attribute name="options">{'horizontal': True}</attribute></xpath>
+      <xpath expr="//field[@name='lab_location_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='reservation_picking_id'] | //field[@name='dispatch_picking_id'] | //field[@name='receipt_picking_id'] | //field[@name='delivery_picking_id'] | //field[@name='purchase_order_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='frame_snapshot']" position="replace"/>
+      <xpath expr="//field[@name='frame_source']/ancestor::page" position="inside">
+        <div class="text-muted mt-2">Receive, reserve and move company frames in Odoo Inventory. Customer-owned frames are recorded by identity and condition and do not create company stock.</div>
+      </xpath>
+      <xpath expr="//field[@name='sop_signoff_ids']" position="before">
+        <button name="action_complete_sop" type="object" string="Record SOP completion" class="btn-secondary mb-3"/>
+      </xpath>
+      <xpath expr="//field[@name='case_ids']" position="before">
+        <button name="action_open_cases" type="object" string="Open / create aftercare case" class="btn-secondary mb-3"/>
+      </xpath>
+      <xpath expr="//notebook" position="inside"><page string="Verified frame snapshot" invisible="not frame_snapshot"><field name="frame_snapshot" readonly="1"/></page></xpath>
+    </field>
+  </record>
+
+  <record id="job_search_usability" model="ir.ui.view">
+    <field name="name">optical.job.search.usability</field><field name="model">optical.job</field><field name="inherit_id" ref="job_search"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='frame_id']" position="after"><field name="sale_order_id"/><field name="supplier_reference"/></xpath>
+      <xpath expr="//filter[@name='ready']" position="after">
+        <separator/><filter name="at_lab" string="At laboratory" domain="[('state','=','in_lab')]"/>
+        <filter name="incoming" string="Awaiting incoming QC" domain="[('state','=','received')]"/>
+        <filter name="customer_frames" string="Customer-owned frames" domain="[('frame_source','=','customer')]"/>
+        <filter name="has_open_case" string="Open aftercare" domain="[('case_ids.state','in',['open','approved'])]"/>
+      </xpath>
+      <xpath expr="//group" position="inside"><filter name="by_patient" string="Customer / patient" context="{'group_by':'patient_id'}"/></xpath>
+    </field>
+  </record>
+
+  <record id="job_kanban_usability" model="ir.ui.view">
+    <field name="name">optical.job.kanban.usability</field><field name="model">optical.job</field><field name="inherit_id" ref="job_kanban"/>
+    <field name="arch" type="xml">
+      <xpath expr="//kanban/templates" position="before"><field name="frame_product_id"/><field name="frame_source"/><field name="laboratory_id"/><field name="sale_order_id"/><field name="open_case_count"/></xpath>
+      <xpath expr="//t[@t-name='card']" position="replace">
+        <t t-name="card">
+          <div class="d-flex justify-content-between align-items-center"><strong><field name="name"/></strong><span t-if="record.overdue.raw_value" class="badge text-bg-danger">Overdue</span></div>
+          <div class="fw-bold mt-2"><field name="patient_id"/></div>
+          <div t-if="record.frame_source.raw_value == 'customer'" class="text-muted">Customer-owned frame</div>
+          <div t-else=""><field name="frame_product_id"/></div>
+          <div class="text-muted small"><field name="frame_code"/></div>
+          <div class="mt-2"><i class="fa fa-calendar-o me-1" title="Expected delivery"/>Due <field name="expected_date"/></div>
+          <div t-if="record.laboratory_id.raw_value" class="small mt-1">Lab: <field name="laboratory_id"/></div>
+          <div t-if="record.sale_order_id.raw_value" class="small">Order: <field name="sale_order_id"/></div>
+          <span t-if="record.open_case_count.raw_value" class="badge text-bg-warning mt-2"><field name="open_case_count"/> open aftercare</span>
+        </t>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- A related company is empty until a job is chosen. Override the automatic
+       company=False lookup domain while retaining ORM company checks and ACLs. -->
+  <record id="case_form_usability" model="ir.ui.view">
+    <field name="name">optical.case.form.usability</field><field name="model">optical.case</field><field name="inherit_id" ref="case_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='job_id']" position="attributes"><attribute name="domain">[('company_id','in',context.get('allowed_company_ids', []))]</attribute><attribute name="options">{'no_create': True}</attribute><attribute name="readonly">id</attribute></xpath>
+      <xpath expr="//sheet/group" position="before"><div class="alert alert-info">Keep the original job intact. Record the issue and the native stock or financial treatment before a manager approves a resolution.</div></xpath>
+      <xpath expr="//field[@name='return_picking_id'] | //field[@name='credit_note_id']" position="attributes"><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='name'] | //field[@name='kind'] | //field[@name='description'] | //field[@name='responsibility'] | //field[@name='due_date'] | //field[@name='resolution'] | //field[@name='cost_treatment'] | //field[@name='return_picking_id'] | //field[@name='credit_note_id']" position="attributes"><attribute name="readonly">state != 'open'</attribute></xpath>
+    </field>
+  </record>
+  <record id="signoff_form_usability" model="ir.ui.view">
+    <field name="name">optical.sop.signoff.form.usability</field><field name="model">optical.sop.signoff</field><field name="inherit_id" ref="sop_signoff_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='job_id']" position="attributes"><attribute name="domain">[('company_id','in',context.get('allowed_company_ids', []))]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='sop_id']" position="attributes"><attribute name="domain">[('state','=','active'),('company_id','=',company_id)]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//sheet" position="inside"><field name="company_id" invisible="1"/></xpath>
+    </field>
+  </record>
+  <record id="quality_form_usability" model="ir.ui.view">
+    <field name="name">optical.quality.form.usability</field><field name="model">optical.quality</field><field name="inherit_id" ref="quality_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='job_id']" position="attributes"><attribute name="domain">[('company_id','in',context.get('allowed_company_ids', []))]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='sop_id']" position="attributes"><attribute name="string">Approved checklist</attribute><attribute name="domain">[('state','=','active'),('step','=',stage),('company_id','=',company_id)]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//sheet" position="inside"><field name="company_id" invisible="1"/></xpath>
+    </field>
+  </record>
+  <record id="clinical_form_usability" model="ir.ui.view">
+    <field name="name">optical.job.clinical.form.usability</field><field name="model">optical.job.clinical</field><field name="inherit_id" ref="clinical_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='job_id']" position="attributes"><attribute name="domain">[('company_id','in',context.get('allowed_company_ids', []))]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='prescription_id']" position="attributes"><attribute name="domain">[('state','=','approved'),('patient_id','=',patient_id),('company_id','=',company_id)]</attribute><attribute name="options">{'no_create': True}</attribute></xpath>
+      <xpath expr="//field[@name='job_id']" position="after"><field name="patient_id" readonly="1"/></xpath>
+      <xpath expr="//field[@name='company_id']" position="attributes"><attribute name="groups"/><attribute name="invisible">1</attribute></xpath>
+      <xpath expr="//sheet" position="before"><div class="alert alert-info">Select an approved prescription for this patient. Record each eye separately. Changes invalidate this pair's earlier verification and quality checks.</div></xpath>
+    </field>
+  </record>
+  <record id="rx_form_usability" model="ir.ui.view">
+    <field name="name">optical.prescription.form.usability</field><field name="model">optical.prescription</field><field name="inherit_id" ref="rx_form"/>
+    <field name="arch" type="xml"><xpath expr="//header" position="inside"><button name="action_print_prescription" type="object" string="Print prescription" icon="fa-print"/></xpath></field>
+  </record>
+  <record id="product_optical_identity_form" model="ir.ui.view">
+    <field name="name">product.template.optical.identity</field><field name="model">product.template</field><field name="inherit_id" ref="native_product"/>
+    <field name="arch" type="xml"><xpath expr="//field[@name='optical_frame']" position="after">
+      <field name="optical_brand" invisible="not optical_frame"/><field name="optical_model" invisible="not optical_frame"/><field name="optical_colour" invisible="not optical_frame"/>
+      <field name="optical_eye_size" invisible="not optical_frame"/><field name="optical_bridge_size" invisible="not optical_frame"/><field name="optical_temple_length" invisible="not optical_frame"/>
+    </xpath></field>
+  </record>
+  <record id="partner_optical_navigation" model="ir.ui.view">
+    <field name="name">res.partner.optical.navigation</field><field name="model">res.partner</field><field name="inherit_id" ref="native_partner"/>
+    <field name="arch" type="xml"><xpath expr="//div[@name='button_box']" position="inside"><button name="action_view_optical_jobs" type="object" class="oe_stat_button" icon="fa-eye" string="Optical jobs" groups="popspec_optical.group_operator"/></xpath></field>
+  </record>
+  <record id="sale_optical_navigation" model="ir.ui.view">
+    <field name="name">sale.order.optical.navigation</field><field name="model">sale.order</field><field name="inherit_id" ref="native_sale"/>
+    <field name="arch" type="xml"><xpath expr="//div[@name='button_box']" position="inside"><button name="action_view_optical_jobs" type="object" class="oe_stat_button" icon="fa-eye" string="Optical jobs" groups="popspec_optical.group_operator"/></xpath></field>
+  </record>
+</odoo>

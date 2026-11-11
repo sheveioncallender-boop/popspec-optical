@@ -1,0 +1,99 @@
+<odoo>
+  <record id="report_job_sheet" model="ir.actions.report">
+    <field name="name">Optical job sheet</field><field name="model">optical.job</field><field name="report_type">qweb-pdf</field>
+    <field name="report_name">popspec_optical.job_sheet_document</field><field name="binding_model_id" ref="model_optical_job"/>
+    <field name="binding_type">report</field><field name="group_ids" eval="[(4, ref('group_operator'))]"/>
+    <field name="print_report_name">'Job sheet - %s' % object.name</field>
+  </record>
+  <record id="report_collection" model="ir.actions.report">
+    <field name="name">Collection reference</field><field name="model">optical.job</field><field name="report_type">qweb-pdf</field>
+    <field name="report_name">popspec_optical.collection_document</field><field name="binding_model_id" ref="model_optical_job"/>
+    <field name="binding_type">report</field><field name="group_ids" eval="[(4, ref('group_operator'))]"/>
+    <field name="print_report_name">'Collection reference - %s' % object.name</field>
+  </record>
+  <record id="report_prescription" model="ir.actions.report">
+    <field name="name">Restricted prescription</field><field name="model">optical.prescription</field><field name="report_type">qweb-pdf</field>
+    <field name="report_name">popspec_optical.prescription_document</field><field name="binding_model_id" ref="model_optical_prescription"/>
+    <field name="binding_type">report</field><field name="group_ids" eval="[(4, ref('group_clinical'))]"/>
+    <field name="print_report_name">'Prescription - %s - v%s' % (object.name, object.version)</field>
+  </record>
+
+  <template id="job_sheet_document">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout">
+      <div class="page" style="font-size:12px;">
+        <h2 style="color:#00a4bd;">Optical job sheet</h2>
+        <table class="table table-sm"><tbody>
+          <tr><th>Job / revision</th><td><strong t-field="o.name"/> / <span t-field="o.revision"/></td><th>Stage</th><td><span t-field="o.state"/></td></tr>
+          <tr><th>Customer</th><td><span t-field="o.patient_id.name"/></td><th>Expected delivery</th><td><span t-field="o.expected_date"/></td></tr>
+          <tr><th>Quotation / order</th><td><span t-field="o.sale_order_id.name"/></td><th>Frame source</th><td><span t-field="o.frame_source"/></td></tr>
+        </tbody></table>
+        <p t-if="o.state == 'draft'" class="alert alert-warning"><strong>Preparation only.</strong> This job has not been released for laboratory ordering.</p>
+        <h4>Frame identification</h4>
+        <t t-set="s" t-value="o.frame_snapshot or {}"/>
+        <table class="table table-sm"><tbody>
+          <tr><th>Physical frame code</th><td><span t-field="o.frame_code"/></td><th>Serial</th><td><span t-field="o.frame_id.name"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>SKU / frame</th><td colspan="3"><span t-esc="s.get('sku', o.frame_product_id.default_code)"/> · <span t-esc="s.get('name', o.frame_product_id.name)"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>Brand / model / colour</th><td colspan="3"><span t-esc="s.get('brand', o.frame_product_id.optical_brand)"/> / <span t-esc="s.get('model', o.frame_product_id.optical_model)"/> / <span t-esc="s.get('colour', o.frame_product_id.optical_colour)"/></td></tr>
+          <tr t-if="o.frame_source == 'customer'"><th>Customer frame</th><td colspan="3" style="white-space:pre-wrap;"><span t-field="o.customer_frame_description"/></td></tr>
+          <tr t-if="o.frame_source == 'customer'"><th>Intake condition</th><td colspan="3" style="white-space:pre-wrap;"><span t-field="o.customer_frame_condition"/></td></tr>
+        </tbody></table>
+        <h4>Laboratory and native documents</h4>
+        <table class="table table-sm"><tbody>
+          <tr><th>Laboratory</th><td><span t-field="o.laboratory_id.name"/></td><th>Purchase order</th><td><span t-field="o.purchase_order_id.name"/></td></tr>
+          <tr><th>Supplier reference</th><td><span t-field="o.supplier_reference"/></td><th>Promised date</th><td><span t-field="o.promised_date"/></td></tr>
+          <tr><th>Lab progress</th><td><span t-field="o.lab_stage"/></td><th>Acknowledged</th><td><span t-field="o.acknowledged_at"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>Reservation</th><td><span t-field="o.reservation_picking_id.name"/></td><th>Lab location</th><td><span t-field="o.lab_location_id.complete_name"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>Transfer to lab</th><td><span t-field="o.dispatch_picking_id.name"/></td><th>Transfer from lab</th><td><span t-field="o.receipt_picking_id.name"/></td></tr>
+          <tr t-if="o.frame_source == 'stock'"><th>Customer delivery</th><td colspan="3"><span t-field="o.delivery_picking_id.name"/></td></tr>
+        </tbody></table>
+        <h4>Next step</h4><p t-field="o.next_step"/>
+        <div t-field="o.name" t-options="{'widget':'barcode','symbology':'Code128','width':600,'height':100,'img_style':'width:260px;height:44px'}"/>
+        <p class="text-muted mt-3">Operational reference only. Prescription, lens specifications and QC details remain in restricted records. Use the restricted laboratory ticket for manufacture. Stock, invoices and payments remain in their native Odoo documents.</p>
+      </div>
+    </t></t></t>
+  </template>
+
+  <template id="collection_document">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout">
+      <div class="page" style="font-size:13px;">
+        <h2 style="color:#00a4bd;">Collection reference</h2>
+        <h3 t-field="o.name"/>
+        <table class="table table-sm"><tbody>
+          <tr><th>Customer</th><td><span t-field="o.patient_id.name"/></td></tr>
+          <tr><th>Current stage</th><td><span t-field="o.state"/></td></tr>
+          <tr><th>Frame reference</th><td><span t-field="o.frame_code"/> · <span t-if="o.frame_source == 'stock'" t-field="o.frame_product_id.name"/><span t-if="o.frame_source == 'customer'">Customer-owned frame</span></td></tr>
+          <tr><th>Quotation / order</th><td><span t-field="o.sale_order_id.name"/></td></tr>
+          <tr><th>Estimated delivery</th><td><span t-field="o.expected_date"/></td></tr>
+          <tr t-if="o.dispensed_at"><th>Dispensed on / by</th><td><span t-field="o.dispensed_at"/> / <span t-field="o.dispensed_by.name"/></td></tr>
+          <tr t-if="o.warranty_until"><th>Recorded warranty end</th><td><span t-field="o.warranty_until"/></td></tr>
+          <tr t-if="o.followup_date"><th>Recorded follow-up</th><td><span t-field="o.followup_date"/></td></tr>
+        </tbody></table>
+        <p t-if="o.state != 'dispensed'"><strong>Collection is not recorded as complete.</strong> Staff must complete fitting, identity, delivery and payment checks in Odoo.</p>
+        <p>This reference is not an invoice or proof of payment. Any warranty is subject to the agreed terms recorded on your order.</p>
+        <div t-field="o.name" t-options="{'widget':'barcode','symbology':'Code128','width':600,'height':100,'img_style':'width:280px;height:48px'}"/>
+        <div style="margin-top:40px;"><p>Collected by: ______________________________</p><p>Signature: ________________________________  Date: __________________</p></div>
+        <p class="text-muted">Record collection confirmation in Odoo after completing the required checks.</p>
+      </div>
+    </t></t></t>
+  </template>
+
+  <template id="prescription_document">
+    <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout">
+      <div class="page" style="font-size:13px;">
+        <h2 style="color:#00a4bd;">Restricted prescription</h2><h3><span t-field="o.name"/> · Version <span t-field="o.version"/></h3>
+        <p t-if="o.state != 'approved'" class="alert alert-warning"><strong>DRAFT — NOT APPROVED FOR LABORATORY USE</strong></p>
+        <table class="table table-sm"><tbody>
+          <tr><th>Patient</th><td><span t-field="o.patient_id.name"/></td><th>Status</th><td><span t-field="o.state"/></td></tr>
+          <tr><th>Examination date</th><td><span t-field="o.examination_date"/></td><th>Valid until</th><td><span t-field="o.valid_until"/></td></tr>
+        </tbody></table>
+        <table class="table table-bordered table-sm"><thead><tr><th>Eye</th><th>Sphere</th><th>Cylinder</th><th>Axis</th><th>Add</th><th>Prism / base</th></tr></thead><tbody>
+          <tr><th>Right (OD)</th><td t-field="o.right_sphere"/><td t-field="o.right_cylinder"/><td t-field="o.right_axis"/><td t-field="o.right_add"/><td t-field="o.right_prism"/></tr>
+          <tr><th>Left (OS)</th><td t-field="o.left_sphere"/><td t-field="o.left_cylinder"/><td t-field="o.left_axis"/><td t-field="o.left_add"/><td t-field="o.left_prism"/></tr>
+        </tbody></table>
+        <h4>Clinical notes</h4><p style="white-space:pre-wrap;" t-field="o.clinical_notes"/>
+        <p t-if="o.state == 'approved'">Approved by <span t-field="o.approved_by.name"/> on <span t-field="o.approved_at"/>. This approved version is retained unchanged.</p>
+        <p class="text-muted">Confidential clinical information. Share only through the patient's or laboratory's authorized process. Lens selection and fitting measurements belong to the individual optical job.</p>
+      </div>
+    </t></t></t>
+  </template>
+</odoo>
